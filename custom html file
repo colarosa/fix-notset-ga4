@@ -1,128 +1,95 @@
 <script>
-(function(){
+(function() {
 
-  var url = window.location.href;
-  var parser = document.createElement('a');
-  parser.href = url;
+  var loc = window.location;
+  var url = loc.href;
 
-  var params = parser.search.substring(1).split("&");
-  var paramsObj = {};
-  for(var i=0; i<params.length; i++){
-    if(params[i]){
-      var pair = params[i].split("=");
-      paramsObj[decodeURIComponent(pair[0])] = pair[1] ? decodeURIComponent(pair[1]) : "";
-    }
-  }
+  if (url.indexOf("utm_") > -1) return;
 
-  // --- 1. Exit if UTM exists
-  if(paramsObj["utm_source"]) return;
-
-  // --- 2. Exit if paid click identifiers exist
-  var adParams = [
+  var paid = [
     "gclid","gclsrc","gbraid","wbraid","dclid",
     "fbclid","msclkid","ttclid","twclid",
     "li_fat_id","yclid","epik"
   ];
-  for(i=0; i<adParams.length; i++){
-    if(paramsObj[adParams[i]]) return;
+
+  for (var i=0;i<paid.length;i++){
+    if (url.indexOf(paid[i]+"=") > -1) return;
   }
 
-  // Generic future-proof ad detection
-  for(var key in paramsObj){
-    if(paramsObj.hasOwnProperty(key)){
-      if(key.length >= 4 && key.substring(key.length-4)==="clid") return;
-      if(key.length >= 7 && key.substring(key.length-7)==="clickid") return;
-    }
-  }
+  var q = loc.search.toLowerCase();
+  if (q.indexOf("clid=") > -1) return;
+  if (q.indexOf("clickid=") > -1) return;
 
-  // --- 3. Initialize defaults
+  var ref = document.referrer;
+
   var source = "(direct)";
   var medium = "(none)";
-  var campaign = "direct";
+  var campaign = "auto";
 
-  // --- 4. Capture referrer
-  var ref = document.referrer;
-  if(ref){
-    try{
-      source = ref.replace(/^https?:\/\/(www\.)?/, '').split("/")[0];
-    }catch(e){}
+  if (ref) {
+
+    var parser = document.createElement("a");
+    parser.href = ref;
+
+    source = parser.hostname.replace("www.","");
     medium = "referral";
 
-    // --- 5. Channel classification
     var search = ["google.","bing.","duckduckgo.","yahoo.","baidu.","yandex.","ecosia.","naver."];
-    for(i=0;i<search.length;i++){ if(source.indexOf(search[i])!==-1) medium="organic"; }
+    for(i=0;i<search.length;i++){
+      if(source.indexOf(search[i])>-1) medium="organic";
+    }
 
-    var social = ["facebook.","instagram.","twitter.","t.co","linkedin.","reddit.","pinterest.","tiktok.","snapchat."];
-    for(i=0;i<social.length;i++){ if(source.indexOf(social[i])!==-1) medium="social"; }
+    var social = ["facebook.","instagram.","linkedin.","twitter.","t.co","reddit.","pinterest.","tiktok."];
+    for(i=0;i<social.length;i++){
+      if(source.indexOf(social[i])>-1) medium="social";
+    }
 
-    var email = ["mail.google.","outlook.","hotmail.","live.com","mail.yahoo.","icloud.","proton.","hey.com"];
-    for(i=0;i<email.length;i++){ if(source.indexOf(email[i])!==-1) medium="email"; }
+    var email = ["mail.","outlook.","gmail.","hotmail.","yahoo.","icloud."];
+    for(i=0;i<email.length;i++){
+      if(source.indexOf(email[i])>-1) medium="email";
+    }
 
-    var messaging = ["whatsapp.","l.whatsapp.","t.me","telegram.","slack.","discord.","messenger."];
-    for(i=0;i<messaging.length;i++){ if(source.indexOf(messaging[i])!==-1) medium="messaging"; }
+    var messaging = ["whatsapp.","t.me","telegram.","slack.","discord.","messenger."];
+    for(i=0;i<messaging.length;i++){
+      if(source.indexOf(messaging[i])>-1) medium="messaging";
+    }
 
-    var ai = ["chat.openai.com","chatgpt.com","perplexity.ai","claude.ai","poe.com","phind.com","you.com"];
-    for(i=0;i<ai.length;i++){ if(source.indexOf(ai[i])!==-1) medium="ai"; }
+    var ai = ["chatgpt","openai","perplexity","claude","poe.com","phind","you.com"];
+    for(i=0;i<ai.length;i++){
+      if(source.indexOf(ai[i])>-1) medium="ai";
+    }
 
-    var dev = ["github.","stackoverflow.","stackexchange.","news.ycombinator.","hackernews.","producthunt."];
-    for(i=0;i<dev.length;i++){ if(source.indexOf(dev[i])!==-1) medium="community"; }
-  }
+  } else {
 
-  // --- 6. Dark social / copied link detection
-  if(!ref && params.length===1 && params[0]===""){
     medium = "dark_social";
 
-    // --- 6a. Fingerprint by user agent
     var ua = navigator.userAgent.toLowerCase();
-    if(ua.indexOf("iphone")!==-1 || ua.indexOf("ipad")!==-1){
-      if(ua.indexOf("safari")!==-1 && ua.indexOf("crios")===-1) source = "iMessage_share";
-      else source = "ios_app_share";
-    } else if(ua.indexOf("android")!==-1){
-      source = "android_app_share";
-    } else {
-      source = "unknown_share";
-    }
 
-    // --- 6b. Hash-based UTM detection
-    var hash = window.location.hash.substring(1);
-    if(hash && hash.indexOf("utm")!==-1){
-      try{
-        var hashParams = hash.split("&");
-        for(i=0;i<hashParams.length;i++){
-          var pair = hashParams[i].split("=");
-          var k = decodeURIComponent(pair[0]);
-          var v = pair[1] ? decodeURIComponent(pair[1]) : "";
-          if(k==="utm_source") source = v;
-          if(k==="utm_medium") medium = v;
-          if(k==="utm_campaign") campaign = v;
-        }
-      }catch(e){}
+    if (ua.indexOf("iphone")>-1 || ua.indexOf("ipad")>-1){
+      source = "ios_share";
+    }
+    else if (ua.indexOf("android")>-1){
+      source = "android_share";
+    }
+    else{
+      source = "direct_share";
     }
   }
 
-  // --- 7. Store session attribution
-  sessionStorage.setItem("attr_session_source",source);
-  sessionStorage.setItem("attr_session_medium",medium);
-  sessionStorage.setItem("attr_session_campaign",campaign);
+  var newParams =
+    "utm_source=" + encodeURIComponent(source) +
+    "&utm_medium=" + encodeURIComponent(medium) +
+    "&utm_campaign=" + encodeURIComponent(campaign);
 
-  // --- 8. Store first-touch attribution (only once)
-  if(!localStorage.getItem("attr_first_source")){
-    localStorage.setItem("attr_first_source",source);
-    localStorage.setItem("attr_first_medium",medium);
-    localStorage.setItem("attr_first_campaign",campaign);
+  var newUrl;
+
+  if (loc.search.length > 0) {
+    newUrl = loc.pathname + loc.search + "&" + newParams + loc.hash;
+  } else {
+    newUrl = loc.pathname + "?" + newParams + loc.hash;
   }
 
-  // --- 9. Push to dataLayer
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({
-    event: "attr_attribution_ready",
-    attr_session_source: source,
-    attr_session_medium: medium,
-    attr_session_campaign: campaign,
-    attr_first_source: localStorage.getItem("attr_first_source"),
-    attr_first_medium: localStorage.getItem("attr_first_medium"),
-    attr_first_campaign: localStorage.getItem("attr_first_campaign")
-  });
+  history.replaceState({}, "", newUrl);
 
 })();
 </script>
