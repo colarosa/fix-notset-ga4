@@ -1,94 +1,155 @@
-# GTM Advanced Attribution Script
+# GA4 Attribution UTM Injector
 
-## Overview
+Automatically improves GA4 attribution by injecting missing UTM parameters before analytics loads.  
+This helps reduce **Unassigned**, **Direct**, and **(not set)** traffic while preserving paid attribution.
 
-This repository contains a **Custom HTML script for Google Tag Manager (GTM)** that captures advanced attribution across all traffic channels. It tracks both **session-level** and **first-touch attribution**, including:
+The logic runs client-side and classifies traffic such as:
 
-- Email campaigns
-- Messaging apps (WhatsApp, Slack, Discord, iMessage, etc.)
-- AI / LLM traffic (ChatGPT, Claude, Perplexity, etc.)
-- Developer and community traffic (GitHub, StackOverflow, HackerNews, Product Hunt)
-- Organic search
-- Referral traffic
+- Organic search  
+- Social  
+- Email  
+- Messaging apps  
+- AI tools (ChatGPT, Perplexity, etc.)  
+- Dark social  
+- Direct shares  
 
-The script is **fully ES5-compatible**, safe for any GTM implementation, and does **not interfere with existing dataLayer keys or tags**. Paid traffic (gclid, fbclid, and other ad parameters) is ignored to preserve clean attribution.
-
----
-
-## Features
-
-- Session-level and first-touch attribution tracking
-- Channel classification: organic, social, email, messaging, AI, developer/community, referral
-- Safe for GTM: all keys are prefixed with `attr_`
-- Stores session attribution in `sessionStorage` and first-touch in `localStorage`
-- Optional hash-based UTM detection for copied links
-- Fully ES5-compatible for browser and GTM support
+Paid traffic identifiers like `gclid`, `fbclid`, and `msclkid` are preserved.
 
 ---
 
-## Setup Instructions
+# What This Fixes
 
-### 1. Add the Custom HTML Tag
+This improves attribution for:
 
-1. In GTM, go to **Tags → New → Custom HTML**  
-2. Paste the **ES5 attribution script** from this repository  
-3. Set **Trigger → All Pages → Initialization**  
-4. Save and publish the tag  
-
-> This ensures the script runs early on every page and computes attribution correctly.
-
----
-
-### 2. Set up the GA4 Event Tag
-
-1. **Tag Type:** GA4 Event  
-2. **Configuration Tag:** Select your main GA4 Configuration tag  
-3. **Event Name:** `attr_attribution_ready`  
-4. **Trigger:** Custom Event → Event name = `attr_attribution_ready`  
-5. **Event Parameters:** Map dataLayer keys as follows:
-
-| GA4 Event Parameter | dataLayer Variable |
-|--------------------|------------------|
-| session_source      | attr_session_source |
-| session_medium      | attr_session_medium |
-| session_campaign    | attr_session_campaign |
-| first_source        | attr_first_source |
-| first_medium        | attr_first_medium |
-| first_campaign      | attr_first_campaign |
-
-6. Save and publish the tag  
-
-> This ensures GA4 captures both **session** and **first-touch attribution** after the Custom HTML script runs.
+- Unassigned traffic  
+- (not set) source / medium  
+- Dark social traffic  
+- Email clicks without UTMs  
+- Messaging apps (Slack, WhatsApp, SMS)  
+- AI tools and LLM referrals  
+- iOS / Android share sheet traffic  
 
 ---
 
-### 3. Optional Notes
+# How It Works
 
-- Prefixed keys (`attr_`) prevent conflicts with existing GTM or dataLayer variables.  
-- Paid traffic is ignored, ensuring clean first-touch and session attribution for organic and other channels.  
-- Messaging app traffic is detected using user agent fingerprinting for iOS and Android apps.  
-- The script handles URL hash-based UTMs for links shared via copy/paste.  
+1. Script runs before GA4 loads  
+2. Checks if UTMs already exist  
+3. Checks for paid click IDs  
+4. Detects referrer or missing referrer  
+5. Classifies traffic source + medium  
+6. Injects UTM parameters  
+7. GA4 reads proper attribution  
 
----
-
-## Example Workflow
-
-1. User lands on your site via a shared link in WhatsApp, Slack, or email  
-2. Custom HTML script runs → detects source and medium based on referrer or link  
-3. Session and first-touch attribution are stored in **sessionStorage** and **localStorage**  
-4. Script pushes `attr_attribution_ready` to the dataLayer  
-5. GA4 Event Tag triggers on `attr_attribution_ready` → records all `attr_` parameters  
+No redirects. No reloads. No performance impact.
 
 ---
 
-## Browser & GTM Compatibility
+# Installation
 
-- Fully compatible with GTM Custom HTML tags  
-- Works in all modern browsers (Chrome, Firefox, Safari, Edge)  
-- ES5 syntax ensures **no issues with older GTM engines**  
+### Step 1
+
+Add the script from:
+
+```
+/src/ga4-attribution.js
+```
+
+into Google Tag Manager as a **Custom HTML tag**
 
 ---
 
-## License
+### Step 2
 
-MIT License – free to use and modify for your projects.
+Trigger:
+
+```
+Initialization - All Pages
+```
+
+This ensures it fires **before GA4 config tag**
+
+---
+
+### Step 3
+
+Ensure tag order:
+
+1. Attribution script  
+2. GA4 config tag  
+3. GA4 event tags  
+
+---
+
+# Example Improvements
+
+Before:
+
+```
+Direct / (none)
+Unassigned
+(not set)
+```
+
+After:
+
+```
+ios_share / dark_social
+chatgpt.com / ai
+mail.google.com / email
+reddit.com / social
+google.com / organic
+```
+
+---
+
+# Paid Traffic Protection
+
+The script does nothing when these are present:
+
+- gclid  
+- gbraid  
+- wbraid  
+- fbclid  
+- msclkid  
+- ttclid  
+- twclid  
+- li_fat_id  
+- any *clid  
+- any *clickid  
+
+This ensures Google Ads attribution is never overwritten.
+
+---
+
+# Performance
+
+- No redirects  
+- No reloads  
+- No layout shift  
+- Runs in <1ms  
+- Uses history.replaceState  
+
+---
+
+# Expected Impact
+
+Reduces:
+
+- Unassigned traffic  
+- Direct traffic  
+- (not set)  
+
+Improves:
+
+- Dark social attribution  
+- Email attribution  
+- Messaging attribution  
+- AI referral tracking  
+- Organic vs referral accuracy  
+
+---
+
+# License
+
+MIT
